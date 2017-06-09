@@ -1,0 +1,40 @@
+- name: set fact for swap size
+  set_fact: custom_swap_size_mb={{ ansible_memtotal_mb * 2 | int }}
+  when: ansible_memtotal_mb < 2000
+
+- name: set fact for swap size
+  set_fact: custom_swap_size_mb={{ ansible_memtotal_mb * 1.3 | int }}
+  when: ansible_memtotal_mb => 2000 and ansible_memtotal_mb < 4000
+
+- name: set fact for swap size
+  set_fact: custom_swap_size_mb={{ ansible_memtotal_mb * 0.6 | int }}
+  when: ansible_memtotal_mb => 4000 and ansible_memtotal_mb < 8000
+
+
+- name: set fact for swap size
+  set_fact: custom_swap_size_mb={{ ansible_memtotal_mb * 0.4 | int }}
+  when: ansible_memtotal_mb => 8000 and ansible_memtotal_mb < 16000
+
+- name: set fact for swap size
+  set_fact: custom_swap_size_mb=8000
+  when: ansible_memtotal_mb => 16000
+
+- name: create directory structure
+  file: name=/var/res/swap state=directory
+
+- block:
+  - name: create swap disk for systems with ram less than 4gb
+    command: dd if=/dev/zero of=/var/res/swap/srv.swp bs=1M count={{ custom_swap_size_mb }}
+
+  - name: chown swp
+    file: name=/var/res/swap/srv.swp mode=0600 owner=root group=root
+
+  - name: make swap
+    command: mkswap /var/res/swap/srv.swp
+
+  - name: add to fstab new mount poin for swap
+    lineinfile: dest=/etc/fstab line='/var/res/swap/srv.swp        none                    swap    sw              0 0' state=present
+
+  - name: turn swap on
+    command: swapon -a
+  when: ansible_swaptotal_mb < 1
